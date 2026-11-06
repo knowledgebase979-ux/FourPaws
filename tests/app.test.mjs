@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {DatabaseSync} from 'node:sqlite';
 import {FileStore,startServer} from '../server.mjs';
-import {safeAPI,D1Store,blankState,validateState,runAssistant,parseGeminiResponse,assetResponse,secureResponse} from '../worker/index.js';
+import {safeAPI,D1Store,blankState,validateState,runAssistant,parseGeminiResponse,assetResponse,secureResponse,searchNearby,normalizePlaces} from '../worker/index.js';
 class SqliteD1 {
  constructor(){this.db=new DatabaseSync(':memory:');}
  prepare(sql){const statement=this.db.prepare(sql);let args=[];return {bind(...values){args=values;return this;},async first(){return statement.get(...args)||null;},async run(){const r=statement.run(...args);return {meta:{changes:Number(r.changes)}};}};}
@@ -77,3 +77,8 @@ test('non-object JSON payloads receive 400 rather than an internal error',async(
  const input={dogs:[dog],tasks:[],logs:[],extras:{challenges:[{dogId:dog.id,challengeId:'room-treasure',week:'2026-11-02',date:new Date().toISOString()}],quiz:[{questionId:'tail',correct:true,date:new Date().toISOString()}],album:[],family:[{id:'f1',dogId:dog.id,title:'מים טריים',assignee:'המשפחה',due:new Date().toISOString(),done:false}],passports:[{dogId:dog.id,nickname:'לוקי',personality:'סקרן',favorites:'משחקי הרחה'}]}};
  const saved=validateState(input);assert.equal(saved.extras.challenges.length,1);assert.equal(saved.extras.passports[0].nickname,'לוקי');const wrong=structuredClone(input);wrong.extras.family[0].dogId='foreign';assert.throws(()=>validateState(wrong));const active=structuredClone(input);active.extras.album.push({id:'photo1',dogId:dog.id,date:new Date().toISOString(),caption:'תמונה',image:'data:image/svg+xml,<svg onload="alert(1)"/>'});assert.throws(()=>validateState(active));
  });
+
+test('nearby provider geocodes the requested place and strictly filters the selected type and radius',async()=>{
+ const real=globalThis.fetch,calls=[];globalThis.fetch=async(url)=>{url=new URL(url);calls.push(url);if(url.pathname==='/api/')return Response.json({features:[{properties:{name:'עיר הבדיקה'},geometry:{coordinates:[34.88,32.09]}}]});return Response.json({features:[{properties:{name:'מרפאה',osm_type:'N',osm_id:99,osm_key:'amenity',osm_value:'veterinary',street:'הרצל',housenumber:'10',city:'עיר הבדיקה'},geometry:{coordinates:[34.881,32.091]}},{properties:{name:'חנות',osm_type:'N',osm_id:100,osm_key:'shop',osm_value:'pet'},geometry:{coordinates:[34.881,32.091]}},{properties:{name:'מרפאה רחוקה',osm_type:'N',osm_id:101,osm_key:'amenity',osm_value:'veterinary'},geometry:{coordinates:[36,33]}}]});};
+ try{const r=await searchNearby({category:'vet',place:'עיר בדיקה ייחודית',radius:15});assert.equal(calls[0].searchParams.get('q'),'עיר בדיקה ייחודית');assert.equal(calls[1].searchParams.get('osm_tag'),'amenity:veterinary');assert.equal(r.places.length,1);assert.equal(r.places[0].name,'מרפאה');assert.equal(r.places[0].address,'הרצל, 10, עיר הבדיקה');await assert.rejects(searchNearby({category:'unknown',place:'בדיקה'}));}finally{globalThis.fetch=real;}
+});

@@ -73,6 +73,30 @@ function validateExtras(x,dogIds){
  return {challenges,quiz,album,family,passports};
 }
 
+const nearbyCache=new Map();
+const PLACE_TAGS={vet:'amenity:veterinary',hospital:'amenity:veterinary',shop:'shop:pet',dogpark:'leisure:dog_park',park:'leisure:park',trail:'highway:path',beach:'natural:beach'};
+async function photon(path,params){
+ const url=new URL('https://photon.komoot.io/'+path+'/');for(const [k,v]of Object.entries(params))url.searchParams.set(k,String(v));
+ const key=url.href,cached=nearbyCache.get(key);if(cached&&cached.expires>Date.now())return cached.data;
+ let response;try{response=await fetch(url,{headers:{'User-Agent':'FourPaws/1.0 (https://pawpath-kob.h-y-group-5482.chatgpt.site)','Accept':'application/json'},signal:AbortSignal.timeout(8000)});}catch{throw new HttpError(503,'שירות חיפוש המקומות לא השיב. אפשר לנסות שוב או לפתוח את החיפוש ב־Google Maps.');}
+ if(!response.ok)throw new HttpError(503,'שירות חיפוש המקומות אינו זמין כרגע. אפשר לפתוח את החיפוש ב־Google Maps.');
+ let data;try{data=await response.json();}catch{throw new HttpError(502,'התקבלה תשובת חיפוש לא תקינה.');}
+ if(!Array.isArray(data.features))throw new HttpError(502,'התקבלה תשובת חיפוש לא תקינה.');
+ if(nearbyCache.size>=100)nearbyCache.delete(nearbyCache.keys().next().value);nearbyCache.set(key,{data,expires:Date.now()+600000});return data;
+}
+export function placeDistance(a,b){const rad=x=>x*Math.PI/180,dlat=rad(b.lat-a.lat),dlon=rad(b.lon-a.lon);const h=Math.sin(dlat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dlon/2)**2;return 6371*2*Math.atan2(Math.sqrt(h),Math.sqrt(Math.max(0,1-h)));}
+export function normalizePlaces(features,category,center,radius){
+ const [key,value]=PLACE_TAGS[category].split(':');const seen=new Set();return features.flatMap(f=>{const p=f.properties||{},c=f.geometry?.coordinates;if(!Array.isArray(c)||!Number.isFinite(c[0])||!Number.isFinite(c[1])||Math.abs(c[0])>180||Math.abs(c[1])>90||p.osm_key!==key||p.osm_value!==value)return [];const name=String(p['name:he']||p.name||'מקום ללא שם ברישום').slice(0,180);if(category==='hospital'&&!/חולים|חירום|hospital|emergency/i.test(name))return [];const distance=placeDistance(center,{lat:c[1],lon:c[0]});if(distance>radius)return [];const osmType={N:'node',W:'way',R:'relation'}[p.osm_type];if(!osmType||!Number.isSafeInteger(p.osm_id)||p.osm_id<1)return [];const id=osmType+'/'+p.osm_id;if(seen.has(id))return [];seen.add(id);return [{id,name,lat:c[1],lon:c[0],address:[p.street,p.housenumber,p.city||p.locality||p.district].filter(Boolean).map(x=>String(x).slice(0,150)).join(', '),distanceKm:Math.round(distance*10)/10,sourceUrl:'https://www.openstreetmap.org/'+id}];}).sort((a,b)=>a.distanceKm-b.distanceKm).slice(0,20);
+}
+export async function searchNearby(b){
+ if(!b||!Object.hasOwn(PLACE_TAGS,b.category)||!str(b.place||'',100)||!str(b.term||'',100)||![5,15,30].includes(b.radius||15))throw new HttpError(400,'בחרו נושא, מיקום וטווח חיפוש תקינים.');
+ const radius=b.radius||15;let center,label;
+ if(b.lat!==undefined||b.lon!==undefined){if(!Number.isFinite(b.lat)||!Number.isFinite(b.lon)||Math.abs(b.lat)>90||Math.abs(b.lon)>180)throw new HttpError(400,'המיקום אינו תקין.');center={lat:b.lat,lon:b.lon};label='המיקום שנבחר במכשיר';}
+ else{const place=(b.place||'').trim();if(place.length<2)throw new HttpError(400,'הזינו עיר, שכונה או כתובת.');const data=await photon('api',{q:place,limit:1});const f=data.features[0],coords=f?.geometry?.coordinates;if(!coords||!Number.isFinite(coords[0])||!Number.isFinite(coords[1]))throw new HttpError(404,'לא נמצא המיקום הזה. נסו עיר וכתובת מדויקות יותר.');center={lat:coords[1],lon:coords[0]};const p=f.properties||{};label=[p.name,p.city,p.state,p.country].filter((x,i,a)=>x&&a.indexOf(x)===i).join(', ').slice(0,250);}
+ const result=await photon('reverse',{lat:center.lat,lon:center.lon,radius,osm_tag:PLACE_TAGS[b.category],limit:50});
+ return {category:b.category,center,label,radius,places:normalizePlaces(result.features,b.category,center,radius).filter(p=>!b.term||(p.name+' '+p.address).toLocaleLowerCase('he-IL').includes(b.term.toLocaleLowerCase('he-IL'))),source:'OpenStreetMap / Photon',checkedAt:new Date().toISOString()};
+}
+
 async function readJSON(req,limit=512000) { if(!req.headers.get('content-type')?.includes('application/json')) throw new HttpError(415,'נדרש תוכן JSON.'); const reader=req.body?.getReader();if(!reader) throw new HttpError(400,'חסר תוכן.');let size=0;const parts=[];while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>limit){await reader.cancel();throw new HttpError(413,'הבקשה גדולה מדי.');}parts.push(value);}try {const all=new Uint8Array(size);let offset=0;for(const p of parts){all.set(p,offset);offset+=p.length;}const value=JSON.parse(new TextDecoder().decode(all));if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Expected JSON object');return value;}catch {throw new HttpError(400,'בקשה לא תקינה.');} }
 export async function handleAPI(req, store, env={}) {
   const url=new URL(req.url), path=url.pathname, method=req.method;
@@ -81,6 +105,7 @@ export async function handleAPI(req, store, env={}) {
   const cookie=req.headers.get('cookie')?.split(';').map(s=>s.trim()).find(s=>s.startsWith('paw_session='))?.slice(12);
   const sessionHash=cookie ? await digest(cookie) : '';
   const cookieOptions='; Path=/; HttpOnly; SameSite=Lax'+(url.protocol==='https:'?'; Secure':'');
+  if(path==='/api/nearby'&&method==='POST'){const b=await readJSON(req,2000);const ip=req.headers.get('cf-connecting-ip')||'local';if(!await store.allow('nearby:'+await digest(ip)))throw new HttpError(429,'יותר מדי חיפושים. נסו שוב בעוד 15 דקות.');return json(await searchNearby(b));}
   if(path==='/api/entry'&&method==='GET') return json({adminExists:!!await store.userByName('admin')});
   if((path==='/api/register'||path==='/api/login')&&method==='POST') {
     const b=await readJSON(req);
@@ -189,7 +214,7 @@ export async function runAssistant(b,context,env){
   return parseGeminiResponse(await response.json(),find);
 }
 export async function safeAPI(req,store,env={}) {try{return await handleAPI(req,store,env);}catch(e){if(!e.status)console.error('API error',e.name);return json({error:e.status?e.message:'אירעה שגיאה בשרת. נסו שוב.'},e.status||500);}}
-export const securityHeaders = {'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin','Permissions-Policy':'camera=(), microphone=(), geolocation=(self)', 'Content-Security-Policy':"default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://images.unsplash.com https://i.ytimg.com; frame-src https://www.youtube-nocookie.com https://www.google.com; connect-src 'self' https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co https://*.xethub.hf.co; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'"};
+export const securityHeaders = {'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin','Permissions-Policy':'camera=(), microphone=(), geolocation=(self)', 'Content-Security-Policy':"default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://images.unsplash.com https://i.ytimg.com; frame-src https://www.youtube-nocookie.com https://www.google.com https://www.openstreetmap.org; connect-src 'self' https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co https://*.xethub.hf.co; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'"};
 export function secureResponse(res,nonce=''){
   for(const [key,value] of Object.entries(securityHeaders)){
     if(key==='Content-Security-Policy'){

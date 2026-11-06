@@ -4,7 +4,7 @@ Read docs/CODEX_HANDOFF.md and README.md before editing. The handoff records the
 
 - Communicate in clear, concise Hebrew. Use English for code and exact technical identifiers.
 - Continue the existing application. Do not rebuild from a starter or change frameworks without a concrete need.
-- The user selected a colorful, friendly, mobile-first direction. The current implementation uses cream, violet and coral with photo-led cards. Preserve this direction.
+- The user selected a colorful, friendly, mobile-first direction. The latest implementation uses blue, white and sunshine yellow, inspired by pet-service sites. Keep five primary navigation sections and avoid duplicated content.
 - The user authorized publication of completed changes. The existing Site is public; preserve its audience and identity. Run focused validation and publish completed updates.
 - `admin` refers to the FourPaws application user, not a GitHub/Google account. No default password, password reset, or special admin role is authorized by this name.
 - Use Google Gemini and Google Search as already selected. Do not switch AI provider without a user request.
