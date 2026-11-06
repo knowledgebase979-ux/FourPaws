@@ -72,3 +72,8 @@ test('non-object JSON payloads receive 400 rather than an internal error',async(
  const response=await safeAPI(new Request(origin+'/api/register',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:value}),store);assert.equal(response.status,400);
  }}finally{await rm(temp,{recursive:true,force:true});}
 });
+
+ test('new account collections preserve data and reject foreign dog references and active photo content',()=>{
+ const input={dogs:[dog],tasks:[],logs:[],extras:{challenges:[{dogId:dog.id,challengeId:'room-treasure',week:'2026-11-02',date:new Date().toISOString()}],quiz:[{questionId:'tail',correct:true,date:new Date().toISOString()}],album:[],family:[{id:'f1',dogId:dog.id,title:'מים טריים',assignee:'המשפחה',due:new Date().toISOString(),done:false}],passports:[{dogId:dog.id,nickname:'לוקי',personality:'סקרן',favorites:'משחקי הרחה'}]}};
+ const saved=validateState(input);assert.equal(saved.extras.challenges.length,1);assert.equal(saved.extras.passports[0].nickname,'לוקי');const wrong=structuredClone(input);wrong.extras.family[0].dogId='foreign';assert.throws(()=>validateState(wrong));const active=structuredClone(input);active.extras.album.push({id:'photo1',dogId:dog.id,date:new Date().toISOString(),caption:'תמונה',image:'data:image/svg+xml,<svg onload="alert(1)"/>'});assert.throws(()=>validateState(active));
+ });

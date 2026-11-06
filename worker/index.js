@@ -55,8 +55,24 @@ export function validateState(s) {
     if(!str(l.id,100)||!l.id||allIds.has(l.id)||!ids.has(l.dogId)||!['weight','symptom','note'].includes(l.type)||!Number.isFinite(Date.parse(l.date))||!str(l.text,2000)||!Number.isFinite(l.value)||l.value<0||l.value>150||(l.type==='weight'&&l.value<=0)) throw new HttpError(400,'רשומת היומן אינה תקינה.');
     allIds.add(l.id);
   }
-  return {dogs:s.dogs.map(d=>Object.fromEntries(['id','name','breed','size','weight','birthday','notes','vet','phone','chip'].map(k=>[k,d[k]]))),tasks:s.tasks.map(t=>Object.fromEntries(['id','dogId','title','type','due','repeatDays','done','notes','completedAt'].map(k=>[k,t[k]]))),logs:s.logs.map(l=>Object.fromEntries(['id','dogId','type','date','text','value'].map(k=>[k,l[k]])))};
+  const cleanedExtras=s.extras===undefined?undefined:validateExtras(s.extras,ids);
+  return {...(cleanedExtras?{extras:cleanedExtras}:{}),dogs:s.dogs.map(d=>Object.fromEntries(['id','name','breed','size','weight','birthday','notes','vet','phone','chip'].map(k=>[k,d[k]]))),tasks:s.tasks.map(t=>Object.fromEntries(['id','dogId','title','type','due','repeatDays','done','notes','completedAt'].map(k=>[k,t[k]]))),logs:s.logs.map(l=>Object.fromEntries(['id','dogId','type','date','text','value'].map(k=>[k,l[k]])))};
 }
+
+function validateExtras(x,dogIds){
+ if(!x||typeof x!=='object'||Array.isArray(x))throw new HttpError(400,'נתוני ההתקדמות אינם תקינים.');
+ const limits={challenges:300,quiz:100,album:12,family:100,passports:20};
+ for(const [key,max]of Object.entries(limits))if(!Array.isArray(x[key])||x[key].length>max)throw new HttpError(400,'מגבלת נתונים: '+key);
+ const dog=id=>dogIds.has(id),date=v=>validDate(v),bad=()=>{throw new HttpError(400,'נתון אישי אינו תקין.');};
+ const challenges=x.challenges.map(r=>{if(!r||!dog(r.dogId)||!validId(r.challengeId)||!/^\d{4}-\d{2}-\d{2}$/.test(r.week)||!date(r.date))bad();return {dogId:r.dogId,challengeId:r.challengeId,week:r.week,date:r.date};});
+ const quiz=x.quiz.map(r=>{if(!r||!validId(r.questionId)||typeof r.correct!=='boolean'||!date(r.date))bad();return {questionId:r.questionId,correct:r.correct,date:r.date};});
+ const album=x.album.map(r=>{if(!r||!validId(r.id)||!dog(r.dogId)||!date(r.date)||!str(r.caption,350)||!str(r.image,30000)||!/^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(r.image))bad();return {id:r.id,dogId:r.dogId,date:r.date,caption:r.caption,image:r.image};});
+ const family=x.family.map(r=>{if(!r||!validId(r.id)||!dog(r.dogId)||!str(r.title,120)||!r.title.trim()||!str(r.assignee,60)||!r.assignee.trim()||!date(r.due)||typeof r.done!=='boolean')bad();return {id:r.id,dogId:r.dogId,title:r.title,assignee:r.assignee,due:r.due,done:r.done};});
+ const passports=x.passports.map(r=>{if(!r||!dog(r.dogId)||!str(r.nickname,60)||!str(r.personality,250)||!str(r.favorites,300))bad();return {dogId:r.dogId,nickname:r.nickname,personality:r.personality,favorites:r.favorites};});
+ for(const [items,key]of [[album,'id'],[family,'id'],[passports,'dogId'],[quiz,'questionId']])if(new Set(items.map(r=>r[key])).size!==items.length)bad();
+ return {challenges,quiz,album,family,passports};
+}
+
 async function readJSON(req,limit=512000) { if(!req.headers.get('content-type')?.includes('application/json')) throw new HttpError(415,'נדרש תוכן JSON.'); const reader=req.body?.getReader();if(!reader) throw new HttpError(400,'חסר תוכן.');let size=0;const parts=[];while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>limit){await reader.cancel();throw new HttpError(413,'הבקשה גדולה מדי.');}parts.push(value);}try {const all=new Uint8Array(size);let offset=0;for(const p of parts){all.set(p,offset);offset+=p.length;}const value=JSON.parse(new TextDecoder().decode(all));if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Expected JSON object');return value;}catch {throw new HttpError(400,'בקשה לא תקינה.');} }
 export async function handleAPI(req, store, env={}) {
   const url=new URL(req.url), path=url.pathname, method=req.method;
@@ -102,7 +118,8 @@ export async function handleAPI(req, store, env={}) {
     if(!await store.allow('ai:'+user.id)) throw new HttpError(429,'הגעת למגבלת 15 בקשות ברבע שעה. אפשר לנסות מאוחר יותר.');
     const own=(await store.getState(user.id)).state;
     const dog=own.dogs.find(d=>d.id===b.dogId);
-    const context=dog?{breed:dog.breed,weight:dog.weight,birthday:dog.birthday,notes:dog.notes}:null;
+    if(b.includeDog===true&&(b.mode!=='find'||b.consent!==true||!dog))throw new HttpError(400,'שיתוף פרטי הכלב דורש בחירת כלב ואישור מפורש.');
+    const context=dog?{breed:dog.breed,size:dog.size,weight:dog.weight,birthday:dog.birthday,notes:dog.notes}:null;
     return json(await runAssistant(b,context,env));
   }
   if(path==='/api/logout'&&method==='POST') {await store.deleteSession(sessionHash);return json({ok:true},200,{'Set-Cookie':'paw_session='+cookieOptions+'; Max-Age=0'});}
@@ -155,7 +172,7 @@ export function parseGeminiResponse(result,find){
 export async function runAssistant(b,context,env){
   const find=b.mode==='find',model=env.GEMINI_MODEL||'gemini-3.8-flash';
   if(!/^gemini-[a-z0-9.-]+$/.test(model))throw new HttpError(503,'המודל המוגדר בשרת אינו תקין.');
-  const parts=[{text:JSON.stringify({question:b.question,city:b.city||'',sort:b.sort||'relevance',...(find?{}:{dog:context})})}];
+  const parts=[{text:JSON.stringify({question:b.question,city:b.city||'',sort:b.sort||'relevance',...(find?(b.includeDog===true&&b.consent===true?{dog:context}:{}):{dog:context})})}];
   if(b.image){const match=b.image.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+=*)$/);if(!match)throw new HttpError(400,'התמונה אינה תקינה.');parts.push({inlineData:{mimeType:match[1],data:match[2]}});}
   const body={systemInstruction:{parts:[{text:find?searchInstruction:clinicalInstruction}]},contents:[{role:'user',parts}],generationConfig:{maxOutputTokens:8192}};
   if(find)body.tools=[{google_search:{}}];
@@ -172,7 +189,7 @@ export async function runAssistant(b,context,env){
   return parseGeminiResponse(await response.json(),find);
 }
 export async function safeAPI(req,store,env={}) {try{return await handleAPI(req,store,env);}catch(e){if(!e.status)console.error('API error',e.name);return json({error:e.status?e.message:'אירעה שגיאה בשרת. נסו שוב.'},e.status||500);}}
-export const securityHeaders = {'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin','Permissions-Policy':'camera=(), microphone=(), geolocation=()', 'Content-Security-Policy':"default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://images.unsplash.com; connect-src 'self' https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co https://*.xethub.hf.co; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'"};
+export const securityHeaders = {'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin','Permissions-Policy':'camera=(), microphone=(), geolocation=(self)', 'Content-Security-Policy':"default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://images.unsplash.com https://i.ytimg.com; frame-src https://www.youtube-nocookie.com https://www.google.com; connect-src 'self' https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co https://*.xethub.hf.co; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'"};
 export function secureResponse(res,nonce=''){
   for(const [key,value] of Object.entries(securityHeaders)){
     if(key==='Content-Security-Policy'){
