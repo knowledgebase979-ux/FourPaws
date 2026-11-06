@@ -1,0 +1,11 @@
+import {readFile,mkdir,writeFile,cp,rm} from 'node:fs/promises';
+await rm('dist',{recursive:true,force:true});
+await mkdir('dist/server',{recursive:true});
+await mkdir('dist/.openai',{recursive:true});
+const source=await readFile('worker/index.js','utf8');
+const html=await readFile('public/index.html','utf8');
+const css=await readFile('public/style.css','utf8');
+const js=await readFile('public/app.js','utf8');
+await writeFile('dist/server/index.js',source.replace('/*__ASSETS__*/', 'const ASSETS='+JSON.stringify({'/':{type:'text/html; charset=utf-8',body:html},'/style.css':{type:'text/css; charset=utf-8',body:css},'/app.js':{type:'text/javascript; charset=utf-8',body:js}})+';'));
+await cp('.openai/hosting.json','dist/.openai/hosting.json');
+console.log('Built single-file Worker with embedded assets.');
