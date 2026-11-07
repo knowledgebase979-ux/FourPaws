@@ -145,3 +145,25 @@
 - [תרגול וטריקים בבית](https://video.wixstatic.com/video/06c7fe_acafc7ea26ef4828bb7a25c35c4c9cc0/1080p/mp4/file.mp4): פעילות משותפת בבית באמצעות לימוד התנהגויות.
 
 אין להשתמש בתואר ״מוסמך״ או ״מוכר רשמית״ מעבר למה שהמקור מציין במפורש. העמודים והארגונים זוהו במקור; לא נערך הליך בדיקת רישוי או אקרדיטציה של כל נותן הדרכה.
+
+## הרחבת מאגר הגזעים — 7 בנובמבר 2026
+
+נוספו 14 גזעים: מלינואה בלגי, רוטוויילר, דוברמן, בוקסר, פודל סטנדרטי, פודל מיניאטורי, רועה אוסטרלי, קוקר ספניאל, תחש, ביישון פריזה, פאג, מלטז, יורקשייר טרייר וצ׳יוואווה. טווחי המשקל הומרו מליברות לק״ג ועוגלו, לפי [טבלת המשקלים של AKC](https://www.akc.org/expert-advice/nutrition/breed-weight-chart/). בגזעים שבהם התקן מגדיר רק תקרה (מלטז, יורקשייר, צ׳יוואווה, תחש מיניאטורי) אין משקל מינימום. לבוקסר נלקח טווח זכרים ונקבות יחד (נקבות כ־15 ליברות פחות). כל כרטיס מקשר לפרופיל הגזע ב־AKC. הערות הטיפול כלליות (טיפוח, פעילות, חום) ואינן קביעה רפואית; הטווח אינו משקל יעד.
+
+## המדריך האישי — מקורות (נבדק 7.11.2026)
+
+| נושא | מקור |
+|---|---|
+| תוחלת חיים וגובה לגזע | AKC (דפי הגזע / השוואת גזעים) |
+| בדיקות בריאות לפי גזע | [AKC — Breed Health Testing Requirements](https://www.akc.org/breeder-programs/breed-health-testing-requirements/) (המלצות מועדוני הגזע; זו לא רשימת OFA/CHIC, שלא הייתה קריאה) |
+| שלבי חיים ותדירות ביקורים | [AAHA 2019](https://www.aaha.org/wp-content/uploads/globalassets/02-guidelines/canine-life-stage-2019/2019-aaha-canine-life-stage-guidelines-final.pdf), [AAHA — הכלב המבוגר](https://www.aaha.org/wp-content/uploads/globalassets/02-guidelines/canine-life-stage-2019/calculator-pdfs/aaha_guidelines_canine_life_stage_calculator_senior_life_stage.pdf) |
+| בחירת מזון, מצב גוף | [WSAVA — בחירת מזון](https://wsava.org/wp-content/uploads/2021/04/Selecting-a-pet-food-for-your-pet-updated-2021_WSAVA-Global-Nutrition-Toolkit.pdf), [WSAVA BCS](https://wsava.org/wp-content/uploads/2020/01/Body-Condition-Score-Dog.pdf) |
+| הצהרת התאמה, גורים גדולים | [Merck — מזון](https://www.msdvetmanual.com/management-and-nutrition/nutrition-small-animals/dog-and-cat-foods), [Merck — סידן](https://www.merckvetmanual.com/management-and-nutrition/nutrition-small-animals/nutritional-requirements-of-small-animals), [Tufts](https://sites.tufts.edu/petfoodology/2022/01/31/growth-guide-keeping-your-puppy-on-the-right-track/) |
+| חום, גזעים ברכיצפליים | [Cornell Riney Center](https://www.vet.cornell.edu/departments-centers-and-institutes/riney-canine-health-center/health-info/summer-heat-safety-tips-dogs) |
+| חוק ותקנות הפיקוח על כלבים | [חוק 2002](https://www.gov.il/BlobFolder/legalinfo/law-dog-supervision-2002/he/regulation_law-regulating-supervision%20of%20dogs.pdf), [תקנות 2005](https://www.gov.il/BlobFolder/generalpage/national-database-for-dog-registration-and-obligation-to-subscribe-general-information/he/pets_999_388.pdf), [סקירת הכנסת 2021](https://fs.knesset.gov.il/globaldocs/MMM/2caf7e4c-2627-eb11-811a-00155d0af32a/2_2caf7e4c-2627-eb11-811a-00155d0af32a_11_17922.pdf) |
+| חיסון כלבת אחת לשנתיים | [משרד החקלאות, תיקון 2024](https://www.gov.il/BlobFolder/legalinfo/takanot-kalevet-tikun-2024/he/vet_takanot-kalevet-tikun-2024.pdf) — נבדק בטקסט ה־PDF. עמודי gov.il ישנים עדיין כותבים "שנתי". |
+| גזעים נפוצים בישראל | [משרד החקלאות, ינואר 2025](https://www.gov.il/BlobFolder/news/dog_names_2024/ar/dog_names_2024.pdf) |
+| סכנות עונתיות | [תהלוכן — משרד החינוך](https://meyda.education.gov.il/files/Bitachon/tvay_tahalucha.pdf); מחקרי האוניברסיטה העברית: [תהלוכן](https://cris.huji.ac.il/en/publications/severe-tongue-necrosis-associated-with-pine-processionary-moth-th/), [צפע](https://cris.huji.ac.il/en/publications/serum-cholesterol-concentration-on-admission-in-415-dogs-envenoma-2/), [מכת חום](https://cris.huji.ac.il/en/publications/heat-stroke-in-dogs-a-retrospective-study-of-54-cases-1999-2004-a/), [קרציות](https://cris.huji.ac.il/en/publications/rhipicephalus-sanguineus-observations-on-the-parasitic-stage-on-d/), [ספירוצרקה](https://cris.huji.ac.il/en/publications/characterization-of-onthophagus-sellatus-as-the-major-intermediat/), [לישמניה](https://cris.huji.ac.il/en/publications/retrospective-study-of-canine-leishmaniosis-in-israel/) |
+| חירום 24/7 | [בית החולים הווטרינרי, האוניברסיטה העברית](https://vethospital.huji.ac.il/english) |
+
+לא אומתו ולכן לא הוצגו: נוסח הזמם והרצועה לכלב מסוכן ברמה הארצית, חובת ביטוח בפועל, חודשי פעילות זבובי החול ועונת ארליכיה בישראל. ב־data.gov.il אין מאגר כלבים לפי גזע/עיר.
